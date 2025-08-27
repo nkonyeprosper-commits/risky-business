@@ -53,12 +53,14 @@ async function main() {
       }
     });
 
-    console.log("🚀 Risky Business Payment Portal Bot is running in Webhook mode...");
+    console.log(
+      "🚀 Risky Business Payment Portal Bot is running in Webhook mode..."
+    );
 
     // Graceful shutdown
     process.on("SIGINT", async () => {
       console.log("Shutting down...");
-      await bot.getBot().deleteWebhook();
+      await bot.getBot().deleteWebHook();
       await database.disconnect();
       process.exit(0);
     });
