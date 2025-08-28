@@ -60,6 +60,7 @@ export class TelegramBotService {
       },
       { command: "/help", description: "Get information" },
       { command: "/orders", description: "Get current orders" },
+      { command: "/getmyid", description: "Get your user ID" },
       // Add admin commands if needed
       { command: "/verify", description: "Verify payments (Admin)" },
       { command: "/pending", description: "View pending orders (Admin)" },
@@ -73,6 +74,7 @@ export class TelegramBotService {
     this.bot.onText(/\/help/, this.handleHelp.bind(this));
     this.bot.onText(/\/orders/, this.handleMyOrders.bind(this));
     this.bot.onText(/\/cancel/, this.handleCancel.bind(this)); // ✅ Added cancel handler
+    this.bot.onText(/\/getmyid/, this.handleGetMyId.bind(this));
     // this.bot.onText(/\/getInfoRisk/, this.getGroupId.bind(this));
 
     // Admin commands
@@ -281,6 +283,33 @@ export class TelegramBotService {
       parse_mode: "Markdown",
       reply_markup: KeyboardService.getMainMenuKeyboard(),
     });
+  }
+
+  private async handleGetMyId(msg: TelegramBot.Message): Promise<void> {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id!;
+    const username = msg.from?.username || 'No username';
+    const firstName = msg.from?.first_name || 'Unknown';
+    
+    // Log to console for admin identification
+    console.log("=== USER ID REQUEST ===");
+    console.log(`User ID: ${userId}`);
+    console.log(`Username: @${username}`);
+    console.log(`First Name: ${firstName}`);
+    console.log(`Chat Type: ${msg.chat.type}`);
+    console.log(`Chat ID: ${chatId}`);
+    console.log("=====================");
+
+    // Send response to user
+    await this.bot.sendMessage(
+      chatId,
+      `👤 **Your User Information:**\n\n` +
+        `🆔 **User ID:** \`${userId}\`\n` +
+        `👤 **Name:** ${firstName}\n` +
+        `📱 **Username:** @${username}\n\n` +
+        `📊 *This information has been logged for admin reference.*`,
+      { parse_mode: "Markdown" }
+    );
   }
 
   private async handleMyOrders(msg: TelegramBot.Message): Promise<void> {

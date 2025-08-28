@@ -119,16 +119,30 @@ export class MediaHandlerService {
     return null;
   }
 
-  // Check if message contains media
+  // Check if message contains media AND is in a private chat (DM)
   hasMedia(msg: TelegramBot.Message): boolean {
-    console.log("We reached here too ooooo");
-    return !!(
+    // Only process media in private chats (DMs), not in groups
+    const isPrivateChat = msg.chat.type === 'private';
+    
+    const hasMediaContent = !!(
       msg.photo ||
       msg.video ||
       msg.animation ||
       msg.document ||
       msg.video_note
     );
+
+    if (hasMediaContent && !isPrivateChat) {
+      // Media sent in group - ignore silently
+      console.log(`Media sent in ${msg.chat.type} chat (${msg.chat.id}) - ignoring`);
+      return false;
+    }
+
+    if (hasMediaContent && isPrivateChat) {
+      console.log("Media detected in private chat - processing");
+    }
+    
+    return hasMediaContent && isPrivateChat;
   }
 
   // Get media file info for logging

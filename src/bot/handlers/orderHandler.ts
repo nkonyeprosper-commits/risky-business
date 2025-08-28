@@ -94,6 +94,12 @@ export class OrderHandler {
     const chatId = msg.chat.id;
     const userId = msg.from?.id!;
 
+    // Double-check this is a private chat (safety check)
+    if (msg.chat.type !== 'private') {
+      console.log(`Media callback ignored for ${msg.chat.type} chat ${chatId}`);
+      return;
+    }
+
     const session = await this.orderService.getUserSession(userId);
     if (!session) {
       // No active session, just acknowledge
