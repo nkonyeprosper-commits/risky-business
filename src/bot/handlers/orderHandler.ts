@@ -714,10 +714,20 @@ export class OrderHandler {
         { parse_mode: "Markdown" }
       );
     } else if (action.startsWith("hours_")) {
-      // Handle end date selection (24h, 48h options)
+      // Handle end date selection (48h, 96h, 168h options)
       const hours = parseInt(action.replace("hours_", ""));
       const startDate = moment(session.data.startDate);
       const endDate = startDate.clone().add(hours, "hours");
+
+      // Validate the duration
+      if (!this.priceService.isValidDuration(hours)) {
+        await this.bot.sendMessage(
+          chatId,
+          "❌ Invalid duration selected. Please use the manual option for custom durations.",
+          { parse_mode: "Markdown" }
+        );
+        return;
+      }
 
       session.data.endDate = endDate.toDate();
       await this.orderService.saveUserSession(session);
@@ -799,13 +809,23 @@ export class OrderHandler {
       return;
     }
 
-    // Check minimum duration (at least 1 hour)
-    if (endDate.diff(startDate, "hours") < 1) {
+    // Calculate duration in hours
+    const durationHours = endDate.diff(startDate, "hours");
+
+    // NEW: Validate duration according to pricing rules
+    if (!this.priceService.isValidDuration(durationHours)) {
       await this.bot.sendMessage(
         chatId,
-        "❌ Service duration must be at least 1 hour.\n" +
-          "Please enter a later end date.\n\n" +
-          "Or use /cancel to start over"
+        "❌ *Invalid Duration*\n\n" +
+          "Duration must be:\n" +
+          "• **Minimum:** 48 hours (2 days)\n" +
+          "• **Valid options:** Multiples of 48 hours OR exactly 1 week (168h)\n\n" +
+          "**Examples:**\n" +
+          "✅ 48h, 96h, 144h, 168h (1 week), 192h, etc.\n" +
+          "❌ 24h, 72h, 120h, 200h\n\n" +
+          "**Pricing:** $50 per 48h period | $150 per week\n\n" +
+          "Or use /cancel to start over",
+        { parse_mode: "Markdown" }
       );
       return;
     }
@@ -820,13 +840,17 @@ export class OrderHandler {
     userId: number,
     session: any
   ): Promise<void> {
-    const price = this.priceService.calculatePrice(
-      session.data.serviceType,
-      session.data.pinnedPosts
-    );
+    // Calculate duration in hours
+    const startDate = moment(session.data.startDate);
+    const endDate = moment(session.data.endDate);
+    const durationHours = endDate.diff(startDate, 'hours');
+    
+    const price = this.priceService.calculatePriceByDuration(durationHours);
     const serviceDesc = this.priceService.getServiceDescription(
-      session.data.serviceType
+      session.data.serviceType,
+      durationHours
     );
+    const pricingBreakdown = this.priceService.getPricingBreakdown(durationHours);
 
     const summary = `
 🧾 *Order Summary*
@@ -844,7 +868,9 @@ ${
       .utc()
       .format("YYYY-MM-DD HH:mm UTC")}
 📅 **End:** ${moment(session.data.endDate).utc().format("YYYY-MM-DD HH:mm UTC")}
+⏱️ **Duration:** ${Math.round(durationHours / 24)} days (${durationHours}h)
 
+💵 **Pricing:** ${pricingBreakdown}
 💰 **Total Price:** $${price}
 
 Select payment network:
@@ -872,10 +898,11 @@ Select payment network:
     session.step = "payment_confirmation";
     await this.orderService.saveUserSession(session);
 
-    const price = this.priceService.calculatePrice(
-      session.data.serviceType,
-      session.data.pinnedPosts
-    );
+    // Calculate duration-based price
+    const startDate = moment(session.data.startDate);
+    const endDate = moment(session.data.endDate);
+    const durationHours = endDate.diff(startDate, 'hours');
+    const price = this.priceService.calculatePriceByDuration(durationHours);
     const walletAddress =
       this.blockchainService.getWalletAddress(paymentNetwork);
 
@@ -1115,10 +1142,11 @@ Thank you for using Risky Business! 🎊
     session: any,
     txnHash: string
   ): Promise<string> {
-    const price = this.priceService.calculatePrice(
-      session.data.serviceType,
-      session.data.pinnedPosts
-    );
+    // Calculate duration-based price
+    const startDate = moment(session.data.startDate);
+    const endDate = moment(session.data.endDate);
+    const durationHours = endDate.diff(startDate, 'hours');
+    const price = this.priceService.calculatePriceByDuration(durationHours);
     const walletAddress = this.blockchainService.getWalletAddress(
       session.data.paymentNetwork
     );

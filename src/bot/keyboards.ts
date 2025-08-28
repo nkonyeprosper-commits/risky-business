@@ -73,19 +73,19 @@ export class KeyboardService {
       inline_keyboard: [
         [
           {
-            text: "📌 Pin (48h) - $50/post",
+            text: "📌 Pin Service",
             callback_data: `service_${ServiceType.PIN}`,
           },
         ],
         [
           {
-            text: "🤖 BuyBot (48h) - $50",
+            text: "🤖 BuyBot Service",
             callback_data: `service_${ServiceType.BUYBOT}`,
           },
         ],
         [
           {
-            text: "🔥 Combo (48h) - $50",
+            text: "🔥 Combo (Pin + BuyBot)",
             callback_data: `service_${ServiceType.COMBO}`,
           },
         ],
@@ -104,19 +104,18 @@ export class KeyboardService {
     };
   }
 
-  // 🆕 NEW: End date selection keyboard
+  // 🆕 NEW: End date selection keyboard with new pricing
   static getEndDateKeyboard(startDate: Date): TelegramBot.InlineKeyboardMarkup {
     const start = moment(startDate);
 
     return {
       inline_keyboard: [
         [
-          { text: "⏰ 24 Hours", callback_data: "date_hours_24" },
-          { text: "⏰ 48 Hours", callback_data: "date_hours_48" },
+          { text: "⏰ 48 Hours - $50", callback_data: "date_hours_48" },
+          { text: "⏰ 96 Hours - $100", callback_data: "date_hours_96" },
         ],
         [
-          { text: "⏰ 72 Hours", callback_data: "date_hours_72" },
-          { text: "⏰ 1 Week", callback_data: "date_hours_168" },
+          { text: "⏰ 1 Week - $150", callback_data: "date_hours_168" },
         ],
         [{ text: "📝 Enter Manually", callback_data: "date_manual" }],
         [{ text: "❌ Cancel", callback_data: "cancel_order" }],
