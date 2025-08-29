@@ -290,15 +290,6 @@ export class TelegramBotService {
     const userId = msg.from?.id!;
     const username = msg.from?.username || 'No username';
     const firstName = msg.from?.first_name || 'Unknown';
-    
-    // Log to console for admin identification
-    console.log("=== USER ID REQUEST ===");
-    console.log(`User ID: ${userId}`);
-    console.log(`Username: @${username}`);
-    console.log(`First Name: ${firstName}`);
-    console.log(`Chat Type: ${msg.chat.type}`);
-    console.log(`Chat ID: ${chatId}`);
-    console.log("=====================");
 
     // Send response to user
     await this.bot.sendMessage(
@@ -307,7 +298,7 @@ export class TelegramBotService {
         `🆔 **User ID:** \`${userId}\`\n` +
         `👤 **Name:** ${firstName}\n` +
         `📱 **Username:** @${username}\n\n` +
-        `📊 *This information has been logged for admin reference.*`,
+        `📧 *Send this User ID to the admin to request admin privileges.*`,
       { parse_mode: "Markdown" }
     );
   }
