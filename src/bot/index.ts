@@ -43,65 +43,92 @@ export class TelegramBotService {
       this.blockchainService
     );
 
-    this.setupBotCommands();
+    this.setupBotCommands(); // Fire and forget - don't block initialization
     this.setupHandlers();
     this.startPeriodicVerification();
   }
 
-  private setupBotCommands() {
-    this.bot.setMyCommands([
-      {
-        command: "/start",
-        description: "Start interacting with bot",
-      },
-      {
-        command: "/cancel",
-        description: "Stop a session order you are currently on",
-      },
-      { command: "/help", description: "Get information" },
-      { command: "/orders", description: "Get current orders" },
-      { command: "/getmyid", description: "Get your user ID" },
-      // Add admin commands if needed
-      { command: "/verify", description: "Verify payments (Admin)" },
-      { command: "/pending", description: "View pending orders (Admin)" },
-      { command: "/stats", description: "View statistics (Admin)" },
-    ]);
+  private async setupBotCommands() {
+    try {
+      await this.bot.setMyCommands([
+        {
+          command: "/start",
+          description: "Start interacting with bot",
+        },
+        {
+          command: "/cancel",
+          description: "Stop a session order you are currently on",
+        },
+        { command: "/help", description: "Get information" },
+        { command: "/orders", description: "Get current orders" },
+        { command: "/getmyid", description: "Get your user ID" },
+        // Add admin commands if needed
+        { command: "/verify", description: "Verify payments (Admin)" },
+        { command: "/pending", description: "View pending orders (Admin)" },
+        { command: "/stats", description: "View statistics (Admin)" },
+      ]);
+      console.log("Bot commands set successfully");
+    } catch (error) {
+      console.error("Error setting bot commands:", error);
+      // Don't throw error to prevent bot from failing to start
+    }
   }
 
   private setupHandlers(): void {
-    // Command handlers
-    this.bot.onText(/\/start/, this.handleStart.bind(this));
-    this.bot.onText(/\/help/, this.handleHelp.bind(this));
-    this.bot.onText(/\/orders/, this.handleMyOrders.bind(this));
-    this.bot.onText(/\/cancel/, this.handleCancel.bind(this)); // ✅ Added cancel handler
-    this.bot.onText(/\/getmyid/, this.handleGetMyId.bind(this));
-    // this.bot.onText(/\/getInfoRisk/, this.getGroupId.bind(this));
+    try {
+      // Command handlers
+      this.bot.onText(/\/start/, this.handleStart.bind(this));
+      this.bot.onText(/\/help/, this.handleHelp.bind(this));
+      this.bot.onText(/\/orders/, this.handleMyOrders.bind(this));
+      this.bot.onText(/\/cancel/, this.handleCancel.bind(this)); 
+      this.bot.onText(/\/getmyid/, this.handleGetMyId.bind(this));
 
-    // Admin commands
-    this.bot.onText(/\/(verify|pending|stats)/, (msg) => {
-      this.adminHandler.handleAdminCommand(msg);
-    });
+      // Admin commands
+      this.bot.onText(/\/(verify|pending|stats)/, (msg) => {
+        try {
+          this.adminHandler.handleAdminCommand(msg);
+        } catch (error) {
+          console.error("Error in admin command handler:", error);
+        }
+      });
 
-    // Callback query handler
-    this.bot.on("callback_query", (query) => {
-      this.orderHandler.handleCallbackQuery(query);
-    });
+      // Callback query handler
+      this.bot.on("callback_query", (query) => {
+        try {
+          this.orderHandler.handleCallbackQuery(query);
+        } catch (error) {
+          console.error("Error in callback query handler:", error);
+        }
+      });
 
-    // Text message handler for non-commands
-    this.bot.on("message", (msg) => {
-      // Ignore commands, which are handled by onText listeners
-      if (msg.text && msg.text.startsWith("/")) {
-        return;
-      }
-      this.orderHandler.handleTextMessage(msg);
-    });
+      // Text message handler for non-commands
+      this.bot.on("message", (msg) => {
+        try {
+          // Ignore commands, which are handled by onText listeners
+          if (msg.text && msg.text.startsWith("/")) {
+            return;
+          }
+          this.orderHandler.handleTextMessage(msg);
+        } catch (error) {
+          console.error("Error in message handler:", error);
+        }
+      });
 
-    // Error handling
-    this.bot.on("error", (error) => {
-      console.error("Bot error:", error);
-    });
+      // Error handling
+      this.bot.on("error", (error) => {
+        console.error("Bot error:", error);
+      });
 
-    console.log("Telegram bot started successfully");
+      // Polling error handling
+      this.bot.on("polling_error", (error) => {
+        console.error("Polling error:", error);
+      });
+
+      console.log("Telegram bot handlers set up successfully");
+    } catch (error) {
+      console.error("Error setting up bot handlers:", error);
+      throw error; // This is critical, so we should throw
+    }
   }
 
   // ✅ NEW: Handle /cancel command
@@ -286,21 +313,37 @@ export class TelegramBotService {
   }
 
   private async handleGetMyId(msg: TelegramBot.Message): Promise<void> {
-    const chatId = msg.chat.id;
-    const userId = msg.from?.id!;
-    const username = msg.from?.username || 'No username';
-    const firstName = msg.from?.first_name || 'Unknown';
+    try {
+      const chatId = msg.chat.id;
+      const userId = msg.from?.id;
+      
+      if (!userId) {
+        await this.bot.sendMessage(chatId, "❌ Unable to retrieve your user ID.");
+        return;
+      }
 
-    // Send response to user
-    await this.bot.sendMessage(
-      chatId,
-      `👤 **Your User Information:**\n\n` +
-        `🆔 **User ID:** \`${userId}\`\n` +
-        `👤 **Name:** ${firstName}\n` +
-        `📱 **Username:** @${username}\n\n` +
-        `📧 *Send this User ID to the admin to request admin privileges.*`,
-      { parse_mode: "Markdown" }
-    );
+      const username = msg.from?.username || 'No username';
+      const firstName = msg.from?.first_name || 'Unknown';
+
+      // Send response to user
+      await this.bot.sendMessage(
+        chatId,
+        `👤 **Your User Information:**\n\n` +
+          `🆔 **User ID:** \`${userId}\`\n` +
+          `👤 **Name:** ${firstName}\n` +
+          `📱 **Username:** @${username}\n\n` +
+          `📧 *Send this User ID to the admin to request admin privileges.*`,
+        { parse_mode: "Markdown" }
+      );
+      
+      console.log(`GetMyId command used by user ${userId} (${username})`);
+    } catch (error) {
+      console.error("Error in handleGetMyId:", error);
+      await this.bot.sendMessage(
+        msg.chat.id,
+        "❌ An error occurred while retrieving your information. Please try again."
+      );
+    }
   }
 
   private async handleMyOrders(msg: TelegramBot.Message): Promise<void> {
