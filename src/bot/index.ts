@@ -322,18 +322,20 @@ export class TelegramBotService {
         return;
       }
 
-      const username = msg.from?.username || 'No username';
+      const username = msg.from?.username;
       const firstName = msg.from?.first_name || 'Unknown';
 
-      // Send response to user
+      // Build username display safely
+      const usernameDisplay = username ? `@${username}` : 'No username set';
+
+      // Send response to user (no markdown to avoid parsing errors)
       await this.bot.sendMessage(
         chatId,
-        `👤 **Your User Information:**\n\n` +
-          `🆔 **User ID:** \`${userId}\`\n` +
-          `👤 **Name:** ${firstName}\n` +
-          `📱 **Username:** @${username}\n\n` +
-          `📧 *Send this User ID to the admin to request admin privileges.*`,
-        { parse_mode: "Markdown" }
+        `👤 Your User Information:\n\n` +
+          `🆔 User ID: ${userId}\n` +
+          `👤 Name: ${firstName}\n` +
+          `📱 Username: ${usernameDisplay}\n\n` +
+          `📧 Send this User ID to the admin to request admin privileges.`
       );
       
       console.log(`GetMyId command used by user ${userId} (${username})`);
