@@ -13,6 +13,7 @@ export const config = {
   },
   adminUserIds:
     process.env.ADMIN_USER_IDS?.split(",").map((id) => parseInt(id)) || [],
+  primaryAdminId: process.env.PRIMARY_ADMIN_ID ? parseInt(process.env.PRIMARY_ADMIN_ID) : null,
   timezone: process.env.TIMEZONE || "UTC",
   prices: {
     pin: 50, // $50 per post per 48h

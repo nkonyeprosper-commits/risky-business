@@ -18,6 +18,24 @@ export enum PaymentStatus {
   FAILED = "failed",
 }
 
+export enum TemplateStatus {
+  PENDING = "pending",
+  APPROVED = "approved", 
+  REJECTED = "rejected",
+}
+
+export interface MediaAttachment {
+  fileId: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  mediaType: 'photo' | 'video' | 'animation' | 'document' | 'video_note';
+  width?: number;
+  height?: number;
+  duration?: number;
+  uploadedAt: Date;
+}
+
 export interface SocialLinks {
   twitter?: string;
   telegram?: string;
@@ -58,6 +76,12 @@ export interface Order {
   serviceConfig: ServiceConfig;
   paymentInfo: PaymentInfo;
   totalPrice: number;
+  mediaAttachments: MediaAttachment[];
+  templateStatus: TemplateStatus;
+  templateSentAt?: Date;
+  templateApprovedAt?: Date;
+  templateRejectedAt?: Date;
+  adminNotes?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -65,6 +65,9 @@ export class TelegramBotService {
         // Add admin commands if needed
         { command: "/verify", description: "Verify payments (Admin)" },
         { command: "/pending", description: "View pending orders (Admin)" },
+        { command: "/templates", description: "View pending templates (Admin)" },
+        { command: "/approve", description: "Approve template (Admin)" },
+        { command: "/reject", description: "Reject template (Admin)" },
         { command: "/stats", description: "View statistics (Admin)" },
       ]);
       console.log("Bot commands set successfully");
@@ -95,7 +98,12 @@ export class TelegramBotService {
       // Callback query handler
       this.bot.on("callback_query", (query) => {
         try {
-          this.orderHandler.handleCallbackQuery(query);
+          // Check if it's a template callback
+          if (query.data?.startsWith("template_")) {
+            this.adminHandler.handleTemplateCallback(query);
+          } else {
+            this.orderHandler.handleCallbackQuery(query);
+          }
         } catch (error) {
           console.error("Error in callback query handler:", error);
         }

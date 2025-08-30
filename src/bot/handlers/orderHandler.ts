@@ -8,14 +8,18 @@ import {
   BlockchainNetwork,
   PaymentStatus,
   Order,
+  TemplateStatus,
 } from "../../types";
 import moment from "moment-timezone";
 import { v4 as uuidv4 } from "uuid";
 import { PaymentVerificationService } from "../../services/PaymentVerificationService";
 import { MediaHandlerService } from "../../services/MediaHandlerService";
+import { TemplateService } from "../../services/TemplateService";
+import { config } from "../../config";
 
 export class OrderHandler {
   private mediaHandler: MediaHandlerService;
+  private templateService: TemplateService;
 
   constructor(
     private bot: TelegramBot,
@@ -25,6 +29,7 @@ export class OrderHandler {
     private paymentVerificationService: PaymentVerificationService
   ) {
     this.mediaHandler = new MediaHandlerService(this.bot);
+    this.templateService = new TemplateService(this.bot, this.priceService);
   }
 
   async handleStartOrder(chatId: number, userId: number): Promise<void> {
@@ -117,20 +122,28 @@ export class OrderHandler {
       return;
     }
 
-    // For other steps, inform user
-    await this.bot.sendMessage(
-      chatId,
-      "📎 Media received! I'll save this for your order.\n\n" +
-        "Continue with the current step to proceed."
-    );
-
-    // Forward media anyway with current session context
-    await this.mediaHandler.handleMediaUpload(
+    // For other steps, inform user and collect media
+    const mediaAttachment = await this.mediaHandler.handleMediaUpload(
       msg,
       userId,
       session.data.orderId,
       session.data.projectName
     );
+
+    if (mediaAttachment) {
+      // Store media in session for later use
+      if (!session.data.mediaAttachments) {
+        session.data.mediaAttachments = [];
+      }
+      session.data.mediaAttachments.push(mediaAttachment);
+      await this.orderService.saveUserSession(session);
+
+      await this.bot.sendMessage(
+        chatId,
+        "📎 Media saved for your order!\n\n" +
+          "Continue with the current step to proceed."
+      );
+    }
   }
 
   private async showMediaUploadInstructions(
@@ -225,12 +238,21 @@ export class OrderHandler {
     console.log("What happened next");
 
     // Process the media
-    await this.mediaHandler.handleMediaUpload(
+    const mediaAttachment = await this.mediaHandler.handleMediaUpload(
       msg,
       userId,
       actualSession.data.orderId,
       actualSession.data.projectName
     );
+
+    if (mediaAttachment) {
+      // Store media in session
+      if (!actualSession.data.mediaAttachments) {
+        actualSession.data.mediaAttachments = [];
+      }
+      actualSession.data.mediaAttachments.push(mediaAttachment);
+      await this.orderService.saveUserSession(actualSession);
+    }
 
     console.log("We are still waiting");
     // Ask if they want to upload more
@@ -974,11 +996,34 @@ After sending, click "I've Paid" and enter your transaction hash.
       // Create order and start automatic verification
       const orderId = await this.createOrderFromSession(userId, session, text);
 
+      // Get the created order for template sending
+      const order = await this.orderService.getOrder(orderId);
+      if (!order) {
+        throw new Error("Failed to retrieve created order");
+      }
+
       // Clear session
       await this.orderService.clearUserSession(userId);
 
-      // Start automatic verification process (deprecated)
-      // await this.startAutomaticVerification(orderId, chatId);
+      // Send template to admin's private chat
+      const primaryAdminId = config.primaryAdminId || config.adminUserIds[0];
+      if (primaryAdminId) {
+        try {
+          await this.templateService.sendTemplateToAdmin(order, primaryAdminId);
+          
+          // Update order to mark template as sent
+          await this.orderService.updateOrder(orderId, {
+            templateSentAt: new Date()
+          });
+          
+          console.log(`Template sent to admin ${primaryAdminId} for order ${orderId}`);
+        } catch (templateError) {
+          console.error("Error sending template to admin:", templateError);
+          // Don't fail the order creation because of template sending error
+        }
+      } else {
+        console.warn("No primary admin configured - template not sent");
+      }
 
       // Send initial confirmation
       await this.sendOrderConfirmation(chatId, userId, orderId);
@@ -1175,6 +1220,8 @@ Thank you for using Risky Business! 🎊
         status: PaymentStatus.PENDING,
       },
       totalPrice: price,
+      mediaAttachments: session.data.mediaAttachments || [],
+      templateStatus: TemplateStatus.PENDING,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
