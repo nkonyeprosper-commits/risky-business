@@ -23,9 +23,17 @@ export class TemplateService {
       ? `📎 Media Files: ${order.mediaAttachments.length} attachment(s)`
       : '📎 Media Files: None';
 
+    // Payment status with clear visual indicators
+    const paymentStatusIcon = this.getPaymentStatusIcon(order.paymentInfo.status);
+    const paymentStatusText = this.getPaymentStatusText(order.paymentInfo.status);
+
     const template = `
-🎯 **NEW ORDER TEMPLATE** 
-📋 Order ID: \`${order._id}\`
+🔥 ═══════════════════════════════════════
+🎯 **NEW SUBMISSION: ${order.projectDetails.name.toUpperCase()}**
+🔥 ═══════════════════════════════════════
+
+📋 **Order ID:** \`${order._id}\`
+${paymentStatusIcon} **PAYMENT STATUS: ${paymentStatusText}**
 
 👤 **CLIENT INFO:**
 • User ID: ${order.userId}
@@ -47,12 +55,12 @@ ${socialLinksText}
 • End: ${moment(order.serviceConfig.endDate).utc().format("YYYY-MM-DD HH:mm UTC")}
 ${order.serviceConfig.pinnedPosts ? `• Pinned Posts: ${order.serviceConfig.pinnedPosts}` : ''}
 
-💰 **PAYMENT INFO:**
+💰 **PAYMENT DETAILS:**
 • Pricing: ${pricingBreakdown}
 • Total: $${order.totalPrice}
 • Network: ${order.paymentInfo.network.toUpperCase()}
-• Transaction: \`${order.paymentInfo.txnHash}\`
-• Status: ${order.paymentInfo.status.toUpperCase()}
+• Transaction: \`${order.paymentInfo.txnHash || 'Not provided'}\`
+${paymentStatusIcon} **Status: ${paymentStatusText}**
 
 ${mediaText}
 
@@ -60,7 +68,8 @@ ${mediaText}
 • Order Created: ${moment(order.createdAt).utc().format("YYYY-MM-DD HH:mm UTC")}
 • Template Generated: ${moment().utc().format("YYYY-MM-DD HH:mm UTC")}
 
-⚡ **STATUS: ${order.templateStatus.toUpperCase()}**
+⚡ **ORDER STATUS: ${order.templateStatus.toUpperCase()}**
+═══════════════════════════════════════
     `.trim();
 
     return template;
@@ -135,6 +144,32 @@ ${mediaText}
   // Helper methods
   private calculateDuration(startDate: Date, endDate: Date): number {
     return moment(endDate).diff(moment(startDate), 'hours');
+  }
+
+  private getPaymentStatusIcon(status: string): string {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return '⏳';
+      case 'confirmed':
+        return '✅';
+      case 'failed':
+        return '❌';
+      default:
+        return '❓';
+    }
+  }
+
+  private getPaymentStatusText(status: string): string {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'AWAITING PAYMENT';
+      case 'confirmed':
+        return 'PAYMENT VERIFIED';
+      case 'failed':
+        return 'PAYMENT FAILED';
+      default:
+        return 'UNKNOWN STATUS';
+    }
   }
 
   private formatSocialLinks(socialLinks: any): string {

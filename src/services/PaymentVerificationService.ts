@@ -3,6 +3,7 @@ import { BlockchainService } from "./blockchainService";
 import { PaymentStatus, Order, ServiceType } from "../types";
 import TelegramBot from "node-telegram-bot-api";
 import moment from "moment-timezone";
+import { config } from "../config";
 
 export class PaymentVerificationService {
   private verificationIntervals: Map<string, NodeJS.Timeout> = new Map();
@@ -197,10 +198,13 @@ export class PaymentVerificationService {
       },
     });
 
-    // Only send notification if chatId is provided and valid
+    // Send notification to customer if chatId is provided and valid
     if (chatId > 0) {
       await this.sendConfirmationNotification(order, chatId);
     }
+
+    // Send payment status update to admin
+    await this.sendAdminPaymentStatusUpdate(order, 'CONFIRMED');
   }
 
   // Mark payment as failed
@@ -216,10 +220,13 @@ export class PaymentVerificationService {
       },
     });
 
-    // Only send notification if chatId is provided and valid
+    // Send notification to customer if chatId is provided and valid
     if (chatId > 0) {
       await this.sendFailureNotification(order, chatId);
     }
+
+    // Send payment status update to admin
+    await this.sendAdminPaymentStatusUpdate(order, 'FAILED');
   }
 
   // Send payment confirmation notification
@@ -296,6 +303,41 @@ Thank you for choosing Risky Business! 🎊
         `Failed to send failure notification to chat ${chatId}:`,
         error
       );
+    }
+  }
+
+  // Send payment status update to admin
+  private async sendAdminPaymentStatusUpdate(order: Order, status: 'CONFIRMED' | 'FAILED'): Promise<void> {
+    const primaryAdminId = config.primaryAdminId || config.adminUserIds[0];
+    if (!primaryAdminId) {
+      console.warn("No primary admin configured - payment status update not sent");
+      return;
+    }
+
+    const statusIcon = status === 'CONFIRMED' ? '✅' : '❌';
+    const statusText = status === 'CONFIRMED' ? 'PAYMENT VERIFIED' : 'PAYMENT FAILED';
+    const statusColor = status === 'CONFIRMED' ? '🟢' : '🔴';
+
+    const updateMessage = `
+${statusColor} **PAYMENT STATUS UPDATE**
+
+📋 **Order:** \`${order._id}\`
+🏗️ **Project:** ${order.projectDetails.name.toUpperCase()}
+${statusIcon} **Status:** ${statusText}
+
+🧾 **Transaction:** \`${order.paymentInfo.txnHash}\`
+💰 **Amount:** $${order.totalPrice}
+🔗 **Network:** ${order.paymentInfo.network.toUpperCase()}
+⏰ **Updated:** ${moment().utc().format("YYYY-MM-DD HH:mm UTC")}
+
+${status === 'CONFIRMED' ? '🚀 Service can now begin as scheduled!' : '⚠️ Customer has been notified of the failed verification.'}
+    `.trim();
+
+    try {
+      await this.bot.sendMessage(primaryAdminId, updateMessage);
+      console.log(`Payment status update sent to admin ${primaryAdminId} for order ${order._id}`);
+    } catch (error) {
+      console.error("Error sending payment status update to admin:", error);
     }
   }
 

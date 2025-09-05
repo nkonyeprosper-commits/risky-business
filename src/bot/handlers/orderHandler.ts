@@ -1002,10 +1002,7 @@ After sending, click "I've Paid" and enter your transaction hash.
         throw new Error("Failed to retrieve created order");
       }
 
-      // Clear session
-      await this.orderService.clearUserSession(userId);
-
-      // Send template to admin's private chat
+      // Send template to admin's private chat IMMEDIATELY (regardless of payment status)
       const primaryAdminId = config.primaryAdminId || config.adminUserIds[0];
       if (primaryAdminId) {
         try {
@@ -1024,6 +1021,9 @@ After sending, click "I've Paid" and enter your transaction hash.
       } else {
         console.warn("No primary admin configured - template not sent");
       }
+
+      // Clear session
+      await this.orderService.clearUserSession(userId);
 
       // Send initial confirmation
       await this.sendOrderConfirmation(chatId, userId, orderId);
