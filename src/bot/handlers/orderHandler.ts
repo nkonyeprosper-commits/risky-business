@@ -874,6 +874,37 @@ export class OrderHandler {
     );
     const pricingBreakdown = this.priceService.getPricingBreakdown(durationHours);
 
+    // 🚀 NEW: Send preliminary template to admin immediately
+    const primaryAdminId = config.primaryAdminId || config.adminUserIds[0];
+    if (primaryAdminId) {
+      try {
+        // Get username from Telegram if available
+        let username = session.data.username;
+        if (!username) {
+          try {
+            const chatMember = await this.bot.getChatMember(chatId, userId);
+            username = chatMember.user.username;
+          } catch (error) {
+            console.log("Could not fetch username:", error);
+          }
+        }
+
+        await this.templateService.sendPreliminaryTemplateToAdmin(
+          userId,
+          username,
+          session.data,
+          primaryAdminId
+        );
+        
+        console.log(`Preliminary template sent to admin ${primaryAdminId} for user ${userId}`);
+      } catch (templateError) {
+        console.error("Error sending preliminary template to admin:", templateError);
+        // Don't fail the order process because of template sending error
+      }
+    } else {
+      console.warn("No primary admin configured - preliminary template not sent");
+    }
+
     const summary = `
 🧾 *Order Summary*
 

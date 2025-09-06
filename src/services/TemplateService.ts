@@ -141,6 +141,111 @@ ${mediaText}
     }
   }
 
+  // Create preliminary submission template (before payment)
+  createPreliminaryTemplate(userId: number, username: string | undefined, sessionData: any): string {
+    const duration = this.calculateDuration(sessionData.startDate, sessionData.endDate);
+    const serviceDesc = this.priceService.getServiceDescription(
+      sessionData.serviceType,
+      duration
+    );
+    const pricingBreakdown = this.priceService.getPricingBreakdown(duration);
+    const price = this.priceService.calculatePriceByDuration(duration);
+
+    const socialLinksText = this.formatSocialLinks(sessionData.socialLinks || {});
+    const mediaText = sessionData.mediaAttachments?.length > 0 
+      ? `📎 Media Files: ${sessionData.mediaAttachments.length} attachment(s)`
+      : '📎 Media Files: None';
+
+    const template = `
+🔥 ═══════════════════════════════════════
+🎯 **PRELIMINARY SUBMISSION: ${sessionData.projectName.toUpperCase()}**
+🔥 ═══════════════════════════════════════
+
+⏳ **STATUS: AWAITING PAYMENT DETAILS**
+
+👤 **CLIENT INFO:**
+• User ID: ${userId}
+• Username: ${username || 'Not set'}
+
+📱 **PROJECT DETAILS:**
+• Name: ${sessionData.projectName}
+• Contract: \`${sessionData.contractAddress || 'Not provided'}\`
+• Blockchain: ${sessionData.blockchain ? sessionData.blockchain.toUpperCase() : 'Not selected'}
+• Description: ${sessionData.projectDescription || 'Not provided'}
+
+🔗 **SOCIAL LINKS:**
+${socialLinksText}
+
+🛍️ **SERVICE CONFIG:**
+• Type: ${serviceDesc}
+• Duration: ${duration} hours (${Math.round(duration / 24)} days)
+• Start: ${moment(sessionData.startDate).utc().format("YYYY-MM-DD HH:mm UTC")}
+• End: ${moment(sessionData.endDate).utc().format("YYYY-MM-DD HH:mm UTC")}
+${sessionData.pinnedPosts ? `• Pinned Posts: ${sessionData.pinnedPosts}` : ''}
+
+💰 **ESTIMATED PAYMENT:**
+• Pricing: ${pricingBreakdown}
+• Total: $${price}
+
+${mediaText}
+
+📅 **TIMESTAMPS:**
+• Submission Time: ${moment().utc().format("YYYY-MM-DD HH:mm UTC")}
+
+⚠️ **NOTE: Customer is now selecting payment network and will proceed to payment**
+═══════════════════════════════════════
+    `.trim();
+
+    return template;
+  }
+
+  // Send preliminary template to admin's private chat
+  async sendPreliminaryTemplateToAdmin(userId: number, username: string | undefined, sessionData: any, adminUserId: number): Promise<void> {
+    const template = this.createPreliminaryTemplate(userId, username, sessionData);
+
+    try {
+      // Send the text template
+      await this.bot.sendMessage(adminUserId, template);
+
+      // Send each media attachment if they exist
+      if (sessionData.mediaAttachments && sessionData.mediaAttachments.length > 0) {
+        await this.bot.sendMessage(
+          adminUserId, 
+          `📎 **Media Files for ${sessionData.projectName}:**`
+        );
+
+        for (let i = 0; i < sessionData.mediaAttachments.length; i++) {
+          const media = sessionData.mediaAttachments[i];
+          const caption = `${i + 1}/${sessionData.mediaAttachments.length} - ${media.mediaType} (${this.formatFileSize(media.fileSize)})`;
+
+          // Send media based on type
+          switch (media.mediaType) {
+            case 'photo':
+              await this.bot.sendPhoto(adminUserId, media.fileId, { caption });
+              break;
+            case 'video':
+              await this.bot.sendVideo(adminUserId, media.fileId, { caption });
+              break;
+            case 'animation':
+              await this.bot.sendAnimation(adminUserId, media.fileId, { caption });
+              break;
+            case 'document':
+              await this.bot.sendDocument(adminUserId, media.fileId, { caption });
+              break;
+            case 'video_note':
+              await this.bot.sendVideoNote(adminUserId, media.fileId);
+              break;
+          }
+        }
+      }
+
+      console.log(`Preliminary template sent to admin ${adminUserId} for user ${userId}`);
+    } catch (error) {
+      console.error("Error sending preliminary template to admin:", error);
+      throw error;
+    }
+  }
+
   // Helper methods
   private calculateDuration(startDate: Date, endDate: Date): number {
     return moment(endDate).diff(moment(startDate), 'hours');
