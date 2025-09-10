@@ -156,4 +156,16 @@ export class KeyboardService {
       ],
     };
   }
+
+  static getPromoCodeCheckKeyboard(): TelegramBot.InlineKeyboardMarkup {
+    return {
+      inline_keyboard: [
+        [
+          { text: "✅ Yes", callback_data: "promo_yes" },
+          { text: "❌ No", callback_data: "promo_no" },
+        ],
+        [{ text: "❌ Cancel Order", callback_data: "cancel_order" }],
+      ],
+    };
+  }
 }

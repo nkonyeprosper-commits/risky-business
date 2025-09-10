@@ -76,6 +76,7 @@ export interface Order {
   serviceConfig: ServiceConfig;
   paymentInfo: PaymentInfo;
   totalPrice: number;
+  promoCode?: string;
   mediaAttachments: MediaAttachment[];
   templateStatus: TemplateStatus;
   templateSentAt?: Date;

@@ -68,6 +68,9 @@ export class OrderHandler {
       case "project_name":
         await this.handleProjectName(chatId, userId, text, session);
         break;
+      case "promo_code_entry":
+        await this.handlePromoCodeEntry(chatId, userId, text, session);
+        break;
       case "social_link":
         await this.handleSocialLink(chatId, userId, text, session);
         break;
@@ -278,6 +281,8 @@ export class OrderHandler {
   private getStepDescription(step: string): string {
     const stepDescriptions: { [key: string]: string } = {
       project_name: "Project Name",
+      promo_code_check: "Promo Code Check",
+      promo_code_entry: "Promo Code Entry",
       social_links: "Social Links",
       social_link: "Adding Social Link",
       contract_address: "Contract Address",
@@ -386,6 +391,64 @@ export class OrderHandler {
     session: any
   ): Promise<void> {
     session.data.projectName = text;
+    session.step = "promo_code_check";
+    await this.orderService.saveUserSession(session);
+
+    await this.bot.sendMessage(
+      chatId,
+      "🎟️ *Promo Code*\n\nDo you have a promo code?",
+      {
+        parse_mode: "Markdown",
+        reply_markup: KeyboardService.getPromoCodeCheckKeyboard(),
+      }
+    );
+  }
+
+  private async handlePromoCodeCallback(
+    chatId: number,
+    userId: number,
+    data: string,
+    session: any
+  ): Promise<void> {
+    const action = data.replace("promo_", "");
+
+    if (action === "yes") {
+      session.step = "promo_code_entry";
+      await this.orderService.saveUserSession(session);
+
+      await this.bot.sendMessage(
+        chatId,
+        "🎟️ *Enter Promo Code*\n\nPlease enter your promo code:",
+        { parse_mode: "Markdown" }
+      );
+    } else if (action === "no") {
+      await this.proceedToSocialLinks(chatId, userId, session);
+    }
+  }
+
+  private async handlePromoCodeEntry(
+    chatId: number,
+    userId: number,
+    text: string,
+    session: any
+  ): Promise<void> {
+    session.data.promoCode = text.trim();
+    await this.orderService.saveUserSession(session);
+
+    await this.bot.sendMessage(
+      chatId,
+      `✅ *Promo Code Saved*\n\nPromo code "${text}" has been recorded!\n\nLet's continue with your order:`,
+      { parse_mode: "Markdown" }
+    );
+
+    await this.proceedToSocialLinks(chatId, userId, session);
+  }
+
+  private async proceedToSocialLinks(
+    chatId: number,
+    userId: number,
+    session: any
+  ): Promise<void> {
     session.step = "social_links";
 
     // Initialize socialLinks if not exists
@@ -450,7 +513,9 @@ export class OrderHandler {
     const session = await this.orderService.getUserSession(userId);
     if (!session) return;
 
-    if (data.startsWith("social_")) {
+    if (data.startsWith("promo_")) {
+      await this.handlePromoCodeCallback(chatId, userId, data, session);
+    } else if (data.startsWith("social_")) {
       await this.handleSocialCallback(chatId, userId, data, session);
     } else if (data.startsWith("blockchain_")) {
       await this.handleBlockchainCallback(chatId, userId, data, session);
@@ -1251,6 +1316,7 @@ Thank you for using Risky Business! 🎊
         status: PaymentStatus.PENDING,
       },
       totalPrice: price,
+      promoCode: session.data.promoCode,
       mediaAttachments: session.data.mediaAttachments || [],
       templateStatus: TemplateStatus.PENDING,
       createdAt: new Date(),

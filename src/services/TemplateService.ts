@@ -37,7 +37,7 @@ ${paymentStatusIcon} **PAYMENT STATUS: ${paymentStatusText}**
 
 👤 **CLIENT INFO:**
 • User ID: ${order.userId}
-• Username: ${order.username || 'Not set'}
+• Username: ${order.username || 'Not set'}${order.promoCode ? `\n🎟️ Promo Code: "${order.promoCode}"` : ''}
 
 📱 **PROJECT DETAILS:**
 • Name: ${order.projectDetails.name}
@@ -165,7 +165,7 @@ ${mediaText}
 
 👤 **CLIENT INFO:**
 • User ID: ${userId}
-• Username: ${username || 'Not set'}
+• Username: ${username || 'Not set'}${sessionData.promoCode ? `\n🎟️ Promo Code: "${sessionData.promoCode}"` : ''}
 
 📱 **PROJECT DETAILS:**
 • Name: ${sessionData.projectName}

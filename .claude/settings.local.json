@@ -4,7 +4,8 @@
       "Bash(npm run build:*)",
       "Bash(npm run lint)",
       "Bash(node:*)",
-      "Bash(del test-pricing.js)"
+      "Bash(del test-pricing.js)",
+      "Bash(npm test)"
     ],
     "deny": [],
     "ask": []
